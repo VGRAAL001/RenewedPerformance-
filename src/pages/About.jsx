@@ -1,0 +1,8 @@
+import { Link } from 'react-router-dom'
+import { services } from '../data'
+
+function About() {
+  return <div className="page-wrap page-content"><div className="page-intro"><p className="eyebrow green">The person behind the practice</p><h2>Science-led.<br /><span>Human-first.</span></h2><p className="body-copy">Renewed Performance is a space for considered training, intelligent rehabilitation, and meaningful progress.</p></div><div className="about-grid"><div className="portrait-panel"><span>BA</span><p>Berucia<br />Arends</p></div><div><p className="eyebrow green">Meet Berucia</p><h3>Movement should give you more life, not take it away.</h3><p className="body-copy">Berucia Arends is a Sport Scientist and Biokineticist who believes the right movement prescription can change how you feel in your body every day. Her work combines academic rigour with practical, personal coaching.</p><div className="qualification"><p className="eyebrow green">Qualifications</p><p>BA Human Movement Science · UFS<br />Honours in Sport Science · UFS<br />Honours in Biokinetics · UFS</p></div></div></div><div className="about-services"><p className="eyebrow green">Our services</p><div className="service-cards">{services.map(service => <article key={service.name}><h3>{service.name}</h3><p>{service.detail}</p></article>)}</div></div><Link className="button button-green" to="/book-now">Start your renewal <span>↗</span></Link></div>
+}
+
+export default About
