@@ -1,0 +1,40 @@
+# Firestore Collections
+
+## `classes`
+
+Create one document per scheduled class. The booking page reads documents whose `date` falls within the next seven days.
+
+Required fields:
+
+```text
+className: "Strength Training"
+date: "2026-09-21"
+time: "06:10"
+capacity: 10
+booked: 3
+recurrence: "weekly"
+recurrenceEnd: "2026-12-31"
+```
+
+The available number shown to members is `capacity - booked`.
+
+Recurring classes are stored as separate dated documents so each occurrence can have its own capacity and bookings.
+
+## `users`
+
+Created automatically after signup or login:
+
+```text
+name: "Aaliyah Van Graan"
+email: "member@example.com"
+createdAt: timestamp
+updatedAt: timestamp
+```
+
+## `bookings`
+
+Created automatically after a member confirms a booking. It stores the selected class or one-on-one session, contact details, user ID, status, and creation timestamp.
+
+## Email delivery
+
+The admin acceptance action creates a document in `mail` with an `.ics` attachment. Install Firebase's **Trigger Email** extension and configure it to watch the `mail` collection. The extension sends the confirmation email and calendar invite.

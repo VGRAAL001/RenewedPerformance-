@@ -5,6 +5,8 @@
 .profile-trigger-name { color: #d8e1da; font-size: 11px; }
 .profile-chevron { color: #9db9a2; font-size: 16px; line-height: 1; }
 .profile-panel { position: absolute; top: 47px; right: 0; z-index: 10; width: 285px; padding: 20px; color: var(--dark); background: white; box-shadow: 8px 8px 0 rgba(16, 21, 16, .25); }
+.profile-panel { opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(-8px); transition: opacity .18s ease, transform .18s ease, visibility .18s ease; }
+.profile-menu:hover .profile-panel, .profile-menu:focus-within .profile-panel { opacity: 1; visibility: visible; pointer-events: auto; transform: translateY(0); }
 .profile-panel-head { display: flex; align-items: center; gap: 11px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
 .profile-avatar-large { width: 42px; height: 42px; font-size: 13px; }
 .profile-panel-head strong, .profile-panel-head span { display: block; }.profile-panel-head strong { font: italic 700 22px var(--display); text-transform: uppercase; }.profile-panel-head div span { color: var(--muted); font-size: 10px; margin-top: 2px; }
@@ -17,6 +19,7 @@
 .auth-form label { display: grid; gap: 7px; color: var(--dark); font-size: 11px; font-weight: 700; }
 .auth-form input:not([type='checkbox']) { width: 100%; padding: 13px 14px; border: 1px solid var(--line); border-radius: 0; color: var(--dark); background: #f8faf7; font: 13px 'DM Sans', sans-serif; }
 .auth-form input:focus { outline: 2px solid var(--pale); outline-offset: 1px; }
+.password-field { position: relative; display: block; }.password-field input { padding-right: 58px !important; }.password-toggle { position: absolute; top: 50%; right: 12px; padding: 0; border: 0; color: var(--green); background: transparent; transform: translateY(-50%); cursor: pointer; font-size: 10px; font-weight: 700; }.password-toggle:hover { color: var(--pale); }
 .auth-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .checkbox-label { display: flex !important; align-items: center; gap: 7px !important; color: var(--muted) !important; font-size: 10px !important; font-weight: 500 !important; }
 .auth-forgot { padding: 0; border: 0; color: var(--green); background: transparent; cursor: pointer; font-size: 10px; }
@@ -25,6 +28,7 @@
 .auth-switch a { color: var(--green); font-weight: 700; text-decoration: underline; }
 .auth-error { margin: -3px 0 0; color: #a02b2b; font-size: 11px; line-height: 1.4; }
 .profile-signout { width: 100%; margin-top: 12px; padding: 10px 0 0; border: 0; border-top: 1px solid var(--line); color: #a02b2b; background: transparent; text-align: left; text-transform: uppercase; letter-spacing: 1px; font-size: 9px; font-weight: 700; cursor: pointer; }
+.profile-panel .profile-link:hover { color: var(--green); background: #eef3ee; }
 
 @media (max-width: 760px) {
   .account-link { border: 0; padding-left: 0; }
