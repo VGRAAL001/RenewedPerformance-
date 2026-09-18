@@ -1,10 +1,11 @@
-import { addDoc, collection, doc, getDocs, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
+import { addDoc, collection, deleteDoc, doc, getDocs, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { auth, db } from '../../firebase'
 import { plans } from '../data'
 import { isAdminUser } from '../utils/admin'
+import { classRange, getWeekDateKeys, minutesToTime, timeToMinutes } from '../utils/scheduling'
 
 const adminViews = {
   '/admin': 'overview',
@@ -68,7 +69,7 @@ function Admin() {
       {view === 'classes' && <ClassManager classes={classes} onSaved={async messageText => { await loadAdminData(); setMessage(messageText) }} onError={setError} />}
       {view === 'pricing' && <PricingManager pricing={pricing} onSaved={async () => { await loadAdminData(); setMessage('Prices updated.') }} />}
       {view === 'appointments' && <AppointmentManager bookings={bookings} onSaved={async () => { await loadAdminData(); setMessage('Appointment updated.') }} />}
-      {view === 'calendar' && <CalendarView classes={classes} />}
+      {view === 'calendar' && <CalendarView classes={classes} bookings={bookings} />}
     </div>
   )
 }
@@ -166,6 +167,14 @@ function AppointmentManager({ bookings, onSaved }) {
 
   async function updateStatus(booking, status) {
     await updateDoc(doc(db, 'bookings', booking.id), { status, updatedAt: serverTimestamp() })
+    if (status === 'cancelled' && booking.type === 'oneOnOne' && booking.dateKey && booking.time) {
+      const duration = Number(booking.duration || 30)
+      const start = timeToMinutes(booking.time)
+      await Promise.all(Array.from({ length: duration / 30 }, (_, index) => {
+        const time = minutesToTime(start + index * 30)
+        return deleteDoc(doc(db, 'oneOnOneSlots', `${booking.dateKey}_${time.replace(':', '')}`))
+      }))
+    }
     onSaved()
   }
 
@@ -232,8 +241,30 @@ function createCalendarInvite(booking) {
   return btoa(unescape(encodeURIComponent(ics)))
 }
 
-function CalendarView({ classes }) {
-  return <section className="admin-section"><p className="eyebrow green">Calendar</p><div className="admin-calendar">{classes.length === 0 ? <p className="body-copy">No classes scheduled.</p> : classes.map(item => <article key={item.id}><span>{item.date}</span><strong>{item.className}</strong><small>{item.time} · {Math.max(0, item.capacity - item.booked)}/{item.capacity} spots</small></article>)}</div></section>
+function CalendarView({ classes, bookings }) {
+  const [weekOffset, setWeekOffset] = useState(0)
+  const dates = getWeekDateKeys(weekOffset)
+  const slots = Array.from({ length: 30 }, (_, index) => 5 * 60 + index * 30)
+  const firstDate = new Date(`${dates[0]}T12:00:00`)
+  const lastDate = new Date(`${dates[dates.length - 1]}T12:00:00`)
+  const weekLabel = `${firstDate.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })} - ${lastDate.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })}`
+
+  function cellContent(date, slot) {
+    const classItem = classes.find(item => {
+      if (item.date !== date) return false
+      const range = classRange(item)
+      return slot >= range.start && slot < range.end
+    })
+    if (classItem) return { label: slot === classRange(classItem).start + 15 ? classItem.className : '', type: 'class' }
+    const booking = bookings.find(item => {
+      if (item.type !== 'oneOnOne' || item.dateKey !== date || item.status === 'cancelled') return false
+      const start = timeToMinutes(item.time)
+      return slot >= start && slot < start + Number(item.duration || 30)
+    })
+    return booking ? { label: slot === timeToMinutes(booking.time) ? booking.name : '', type: 'booking' } : null
+  }
+
+  return <section className="admin-section"><div className="calendar-heading"><div><p className="eyebrow green">Calendar · 05:00 to 20:00</p><strong>{weekLabel}</strong></div><div className="calendar-week-controls"><button type="button" onClick={() => setWeekOffset(weekOffset - 1)} aria-label="Previous week">←</button><button type="button" onClick={() => setWeekOffset(0)}>This week</button><button type="button" onClick={() => setWeekOffset(weekOffset + 1)} aria-label="Next week">→</button></div></div><div className="admin-calendar-grid"><div className="calendar-time-heading">Time</div>{dates.map(date => <div className="calendar-day-heading" key={date}>{new Date(`${date}T12:00:00`).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric' })}</div>)}{slots.map(slot => <div className="calendar-grid-row" key={`row-${slot}`}><div className="calendar-time">{minutesToTime(slot)}</div>{dates.map(date => { const content = cellContent(date, slot); return <div className={content ? `calendar-slot ${content.type}` : 'calendar-slot'} key={`${date}-${slot}`}>{content?.label}</div> })}</div>)}</div></section>
 }
 
 function AdminForm({ title, children, onSubmit, saving, button }) {

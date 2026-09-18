@@ -2,7 +2,7 @@ import { collection, getDocs } from 'firebase/firestore'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../../firebase'
-import { oneOnOneServices } from '../data'
+import { oneOnOneOptions } from '../data'
 
 function getNextSevenDayKeys() {
   const today = new Date()
@@ -28,8 +28,11 @@ function BookNow() {
     async function loadClasses() {
       try {
         const dateKeys = getNextSevenDayKeys()
-        const snapshot = await getDocs(collection(db, 'classes'))
-        const classes = snapshot.docs
+        const [classSnapshot, slotSnapshot] = await Promise.all([
+          getDocs(collection(db, 'classes')),
+          getDocs(collection(db, 'oneOnOneSlots')),
+        ])
+        const classes = classSnapshot.docs
           .map(document => ({ id: document.id, ...document.data() }))
           .filter(item => dateKeys.includes(item.date))
           .map(item => ({
@@ -58,6 +61,7 @@ function BookNow() {
   function selectBooking(booking) {
     navigate('/booking-confirmation', { state: { booking } })
   }
+
 
   return (
     <div className="page-wrap page-content">
@@ -141,25 +145,7 @@ function BookNow() {
                   <b className="booking-availability">{item.availability}/{item.capacity} spots</b>
                 </button>
                   ))
-            : oneOnOneServices.map(service => (
-                <button
-                  type="button"
-                  className="booking-option"
-                  key={service}
-                  onClick={() => selectBooking({
-                    type: 'oneOnOne',
-                    name: service,
-                    date: 'To be confirmed',
-                    time: 'By arrangement',
-                  })}
-                >
-                  <span>
-                    <strong>{service}</strong>
-                    Personalised session · By arrangement
-                  </span>
-                  <b>↗</b>
-                </button>
-              ))}
+            : <div className="booking-service-options">{oneOnOneOptions.map(service => <button type="button" className="booking-option" key={service.name} onClick={() => navigate('/booking-schedule', { state: { service } })}><span><strong>{service.name}</strong>{service.durationOptions.length === 1 ? `${service.duration} minute session` : 'Choose duration and time'}</span><b>↗</b></button>)}</div>}
         </div>
       </section>
     </div>

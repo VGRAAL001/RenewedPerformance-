@@ -1,5 +1,5 @@
 import { onAuthStateChanged } from 'firebase/auth'
-import { addDoc, collection, doc, getDoc, runTransaction, serverTimestamp } from 'firebase/firestore'
+import { collection, doc, getDoc, runTransaction, serverTimestamp } from 'firebase/firestore'
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { auth, db } from '../../firebase'
@@ -67,7 +67,24 @@ function BookingConfirmation() {
           transaction.set(bookingReference, bookingData)
         })
       } else {
-        await addDoc(collection(db, 'bookings'), bookingData)
+        if (!user) throw new Error('one-on-one-login-required')
+        await runTransaction(db, async transaction => {
+          const bookingReference = doc(collection(db, 'bookings'))
+          const slotTimes = Array.from({ length: Math.ceil(Number(booking.duration || 30) / 30) }, (_, index) => {
+            const totalMinutes = Number(booking.time.slice(0, 2)) * 60 + Number(booking.time.slice(3)) + index * 30
+            return `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`
+          })
+          const slotReferences = slotTimes.map(time => doc(db, 'oneOnOneSlots', `${booking.dateKey}_${time.replace(':', '')}`))
+          const slotSnapshots = await Promise.all(slotReferences.map(reference => transaction.get(reference)))
+          if (slotSnapshots.some(snapshot => snapshot.exists())) throw new Error('one-on-one-slot-taken')
+          transaction.set(bookingReference, bookingData)
+          slotReferences.forEach((reference, index) => transaction.set(reference, {
+            dateKey: booking.dateKey,
+            time: slotTimes[index],
+            status: 'reserved',
+            createdAt: serverTimestamp(),
+          }))
+        })
       }
       setConfirmed(true)
     } catch (error) {
@@ -77,6 +94,10 @@ function BookingConfirmation() {
         setError('This class has just filled up. Please choose another class.')
       } else if (error.message === 'no-sessions') {
         setError('You do not have any sessions available. Purchase more sessions before booking a class.')
+      } else if (error.message === 'one-on-one-login-required') {
+        setError('Please log in before booking a one-on-one session so we can reserve the time.')
+      } else if (error.message === 'one-on-one-slot-taken') {
+        setError('That time has just been booked. Please choose another available slot.')
       } else if (error.code === 'permission-denied') {
         setError('Booking was denied by Firestore. Please publish the latest firestore.rules.')
       } else {

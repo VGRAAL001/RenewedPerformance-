@@ -45,5 +45,12 @@ service cloud.firestore {
       allow create: if isAdmin();
       allow read, update, delete: if false;
     }
+
+    match /oneOnOneSlots/{slotId} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.status == 'reserved';
+      allow update, delete: if isAdmin();
+    }
   }
 }

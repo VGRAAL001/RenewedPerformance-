@@ -13,3 +13,9 @@ export const plans = [
 ]
 
 export const oneOnOneServices = ['Biokinetics assessment', 'Injury rehabilitation session', 'Sports massage']
+
+export const oneOnOneOptions = [
+  { name: 'Biokinetics assessment', duration: 30, durationOptions: [30] },
+  { name: 'Injury rehabilitation session', duration: 60, durationOptions: [30, 60, 90] },
+  { name: 'Sports massage', duration: 30, durationOptions: [30, 45, 60] },
+]
