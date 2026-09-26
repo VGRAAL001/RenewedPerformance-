@@ -30,12 +30,12 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_API_KEY: AIzaSyA07aZ_PRuWqWasDjbUNmnF9VJzUDE_ORo
+          VITE_FIREBASE_AUTH_DOMAIN: renewedperformance-d8388.firebaseapp.com
+          VITE_FIREBASE_PROJECT_ID: renewedperformance-d8388
+          VITE_FIREBASE_STORAGE_BUCKET: renewedperformance-d8388.firebasestorage.app
+          VITE_FIREBASE_MESSAGING_SENDER_ID: 227086580754
+          VITE_FIREBASE_APP_ID: 1:227086580754:web:bf53fc11ab8c59d47f6ccb
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
