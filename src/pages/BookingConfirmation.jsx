@@ -43,7 +43,8 @@ function BookingConfirmation() {
         customerName: details.name,
         customerEmail: details.email,
         customerPhone: details.phone,
-        status: booking.type === 'class' ? 'confirmed' : 'requested',
+        status: 'confirmed',
+        paymentMethod: booking.type === 'oneOnOne' ? 'in-person' : 'class-session-balance',
         createdAt: serverTimestamp(),
       }
 
@@ -54,30 +55,47 @@ function BookingConfirmation() {
           const userReference = doc(db, 'users', user.uid)
           const classSnapshot = await transaction.get(classReference)
           const userSnapshot = await transaction.get(userReference)
+          const oldClassReference = booking.editingBooking ? doc(db, 'classes', booking.editingBooking.classId) : null
+          const oldClassSnapshot = oldClassReference && booking.editingBooking.classId !== booking.classId ? await transaction.get(oldClassReference) : null
           if (!classSnapshot.exists()) throw new Error('class-not-found')
           const classData = classSnapshot.data()
           const userData = userSnapshot.exists() ? userSnapshot.data() : {}
           const availableSessions = Number(userData.sessionsAvailable || 0)
-          if (availableSessions < 1) throw new Error('no-sessions')
           const availableSpots = Number(classData.capacity || 0) - Number(classData.booked || 0)
           if (availableSpots < 1) throw new Error('class-full')
-          const bookingReference = doc(collection(db, 'bookings'))
-          transaction.update(classReference, { booked: Number(classData.booked || 0) + 1, updatedAt: serverTimestamp() })
-          transaction.set(userReference, { sessionsAvailable: availableSessions - 1, updatedAt: serverTimestamp() }, { merge: true })
-          transaction.set(bookingReference, bookingData)
+          const bookingReference = booking.editingBooking ? doc(db, 'bookings', booking.editingBooking.id) : doc(collection(db, 'bookings'))
+          if (booking.editingBooking) {
+            if (oldClassReference && oldClassSnapshot?.exists()) {
+              transaction.update(oldClassReference, { booked: Math.max(0, Number(oldClassSnapshot.data().booked || 0) - 1), updatedAt: serverTimestamp() })
+              transaction.update(classReference, { booked: Number(classData.booked || 0) + 1, updatedAt: serverTimestamp() })
+            }
+            transaction.update(bookingReference, { ...bookingData, editingBooking: null, updatedAt: serverTimestamp() })
+          } else {
+            if (availableSessions < 1) throw new Error('no-sessions')
+            transaction.update(classReference, { booked: Number(classData.booked || 0) + 1, updatedAt: serverTimestamp() })
+            transaction.set(userReference, { sessionsAvailable: availableSessions - 1, updatedAt: serverTimestamp() }, { merge: true })
+            transaction.set(bookingReference, bookingData)
+          }
         })
       } else {
         if (!user) throw new Error('one-on-one-login-required')
         await runTransaction(db, async transaction => {
-          const bookingReference = doc(collection(db, 'bookings'))
           const slotTimes = Array.from({ length: Math.ceil(Number(booking.duration || 30) / 30) }, (_, index) => {
             const totalMinutes = Number(booking.time.slice(0, 2)) * 60 + Number(booking.time.slice(3)) + index * 30
             return `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`
           })
           const slotReferences = slotTimes.map(time => doc(db, 'oneOnOneSlots', `${booking.dateKey}_${time.replace(':', '')}`))
           const slotSnapshots = await Promise.all(slotReferences.map(reference => transaction.get(reference)))
-          if (slotSnapshots.some(snapshot => snapshot.exists())) throw new Error('one-on-one-slot-taken')
-          transaction.set(bookingReference, bookingData)
+          const oldBooking = booking.editingBooking
+          const oldSlotTimes = oldBooking ? Array.from({ length: Math.ceil(Number(oldBooking.duration || 30) / 30) }, (_, index) => {
+            const totalMinutes = Number(oldBooking.time.slice(0, 2)) * 60 + Number(oldBooking.time.slice(3)) + index * 30
+            return `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`
+          }) : []
+          const oldSlotReferences = oldBooking ? oldSlotTimes.map(time => doc(db, 'oneOnOneSlots', `${oldBooking.dateKey}_${time.replace(':', '')}`)) : []
+          if (slotSnapshots.some((snapshot, index) => snapshot.exists() && !oldSlotReferences.some(reference => reference.path === slotReferences[index].path))) throw new Error('one-on-one-slot-taken')
+          const bookingReference = oldBooking ? doc(db, 'bookings', oldBooking.id) : doc(collection(db, 'bookings'))
+          oldSlotReferences.forEach(reference => transaction.delete(reference))
+          transaction.set(bookingReference, { ...bookingData, editingBooking: null }, { merge: Boolean(oldBooking) })
           slotReferences.forEach((reference, index) => transaction.set(reference, {
             dateKey: booking.dateKey,
             time: slotTimes[index],
@@ -146,9 +164,9 @@ function BookingConfirmation() {
 
       {confirmed ? (
         <section className="booking-confirmed">
-          <p className="eyebrow green">Booking request sent</p>
+          <p className="eyebrow green">Booking confirmed</p>
           <h3>You’re on your way.</h3>
-          <p className="body-copy">Berucia will be in touch at {details.email} to confirm the final details.</p>
+          <p className="body-copy">{booking.type === 'oneOnOne' ? 'Payment is made in person at your one-on-one session.' : 'Your class session has been deducted from your account balance.'}</p>
           <Link className="button button-green" to="/">Return home <span>↗</span></Link>
         </section>
       ) : (
@@ -159,7 +177,8 @@ function BookingConfirmation() {
             <p>{booking.date}</p>
             <p>{booking.time}</p>
             {booking.availability && <p>{booking.availability}/10 spots remaining</p>}
-            {user && <p>{sessionsAvailable} sessions available on your account</p>}
+            {user && booking.type === 'class' && <p>{sessionsAvailable} class sessions available on your account</p>}
+            {booking.type === 'oneOnOne' && <p>Payment is made in person.</p>}
           </section>
 
           <form className="confirmation-form" onSubmit={handleSubmit}>

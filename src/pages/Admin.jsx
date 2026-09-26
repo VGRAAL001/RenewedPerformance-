@@ -1,16 +1,17 @@
-import { addDoc, collection, deleteDoc, doc, getDocs, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
+import { addDoc, collection, deleteDoc, doc, getDocs, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
+import { FiEdit2, FiPlus, FiTrash2, FiX } from 'react-icons/fi'
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { auth, db } from '../../firebase'
-import { plans } from '../data'
+import { specialDeals } from '../data'
 import { isAdminUser } from '../utils/admin'
 import { classRange, getWeekDateKeys, minutesToTime, timeToMinutes } from '../utils/scheduling'
 
 const adminViews = {
   '/admin': 'overview',
   '/admin/classes': 'classes',
-  '/admin/pricing': 'pricing',
+  '/admin/specials': 'specials',
   '/admin/appointments': 'appointments',
   '/admin/calendar': 'calendar',
 }
@@ -20,7 +21,7 @@ function Admin() {
   const [user, setUser] = useState(null)
   const [classes, setClasses] = useState([])
   const [bookings, setBookings] = useState([])
-  const [pricing, setPricing] = useState(plans)
+  const [specials, setSpecials] = useState(specialDeals)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const view = adminViews[location.pathname] || 'overview'
@@ -33,14 +34,14 @@ function Admin() {
 
   async function loadAdminData() {
     try {
-      const [classSnapshot, bookingSnapshot, pricingSnapshot] = await Promise.all([
+      const [classSnapshot, bookingSnapshot, specialsSnapshot] = await Promise.all([
         getDocs(collection(db, 'classes')),
         getDocs(collection(db, 'bookings')),
-        getDocs(collection(db, 'plans')),
+        getDocs(collection(db, 'specials')),
       ])
       setClasses(classSnapshot.docs.map(item => ({ id: item.id, ...item.data() })).sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`)))
       setBookings(bookingSnapshot.docs.map(item => ({ id: item.id, ...item.data() })))
-      if (!pricingSnapshot.empty) setPricing(pricingSnapshot.docs.map(item => ({ id: item.id, ...item.data() })))
+      setSpecials(specialsSnapshot.empty ? specialDeals : specialsSnapshot.docs.map(item => ({ id: item.id, ...item.data() })))
     } catch {
       setError('Admin data could not be loaded. Check that the published rules include admin access.')
     }
@@ -58,17 +59,17 @@ function Admin() {
       </div>
       <nav className="admin-nav" aria-label="Admin navigation">
         <AdminLink to="/admin" active={view === 'overview'}>Overview</AdminLink>
-        <AdminLink to="/admin/classes" active={view === 'classes'}>Create class</AdminLink>
-        <AdminLink to="/admin/pricing" active={view === 'pricing'}>Change prices</AdminLink>
-        <AdminLink to="/admin/appointments" active={view === 'appointments'}>Appointments</AdminLink>
+        <AdminLink to="/admin/classes" active={view === 'classes'}>Classes</AdminLink>
+        <AdminLink to="/admin/appointments" active={view === 'appointments'}>Bookings</AdminLink>
+        <AdminLink to="/admin/specials" active={view === 'specials'}>Specials</AdminLink>
         <AdminLink to="/admin/calendar" active={view === 'calendar'}>Calendar</AdminLink>
       </nav>
       {message && <p className="admin-message">{message}</p>}
       {error && <p className="auth-error" role="alert">{error}</p>}
-      {view === 'overview' && <Overview classes={classes} bookings={bookings} pricing={pricing} />}
+      {view === 'overview' && <Overview classes={classes} bookings={bookings} specials={specials} />}
       {view === 'classes' && <ClassManager classes={classes} onSaved={async messageText => { await loadAdminData(); setMessage(messageText) }} onError={setError} />}
-      {view === 'pricing' && <PricingManager pricing={pricing} onSaved={async () => { await loadAdminData(); setMessage('Prices updated.') }} />}
       {view === 'appointments' && <AppointmentManager bookings={bookings} onSaved={async () => { await loadAdminData(); setMessage('Appointment updated.') }} />}
+      {view === 'specials' && <SpecialManager specials={specials} onSaved={async messageText => { await loadAdminData(); setMessage(messageText) }} onError={setError} />}
       {view === 'calendar' && <CalendarView classes={classes} bookings={bookings} />}
     </div>
   )
@@ -82,17 +83,14 @@ function AdminMessage({ title, link }) {
   return <div className="page-wrap page-content booking-empty"><p className="eyebrow green">Admin workspace</p><h2>{title}</h2><Link className="button button-green" to={link}>Continue <span>↗</span></Link></div>
 }
 
-function Overview({ classes, bookings, pricing }) {
-  return <div className="admin-stats"><Stat value={classes.length} label="Classes scheduled" /><Stat value={bookings.filter(item => item.status === 'requested').length} label="Booking requests" /><Stat value={pricing.length} label="Plans" /></div>
-}
-
-function Stat({ value, label }) {
-  return <article className="admin-stat"><strong>{value}</strong><span>{label}</span></article>
+function Overview({ classes, bookings, specials }) {
+  return <div className="admin-stats"><Link className="admin-stat" to="/admin/classes"><strong>{classes.length}</strong><span>Classes scheduled</span><em>View classes ↗</em></Link><Link className="admin-stat" to="/admin/appointments"><strong>{bookings.filter(item => item.status !== 'cancelled').length}</strong><span>Bookings scheduled</span><em>View bookings ↗</em></Link><Link className="admin-stat" to="/admin/specials"><strong>{specials.length}</strong><span>Specials</span><em>Manage specials ↗</em></Link></div>
 }
 
 function ClassManager({ classes, onSaved, onError }) {
   const [form, setForm] = useState({ className: 'Strength Training', date: '', time: '06:10', capacity: 10, repeatWeekly: false, repeatUntil: '' })
   const [saving, setSaving] = useState(false)
+  const [showForm, setShowForm] = useState(false)
 
   async function submit(event) {
     event.preventDefault()
@@ -115,6 +113,7 @@ function ClassManager({ classes, onSaved, onError }) {
         createdAt: serverTimestamp(),
       })))
       setForm({ className: 'Strength Training', date: '', time: '06:10', capacity: 10, repeatWeekly: false, repeatUntil: '' })
+      setShowForm(false)
       onSaved('Class added to the calendar.')
     } catch (error) {
       onError(error?.code === 'permission-denied'
@@ -125,7 +124,7 @@ function ClassManager({ classes, onSaved, onError }) {
     }
   }
 
-  return <><AdminForm title="Create a class" onSubmit={submit} saving={saving} button={form.repeatWeekly ? 'Add recurring classes' : 'Add class'}><label>Class name<select value={form.className} onChange={event => setForm({ ...form, className: event.target.value })}><option>Strength Training</option><option>Functional Fitness</option><option>Run Fit</option></select></label><label>First date<input type="date" value={form.date} onChange={event => setForm({ ...form, date: event.target.value })} required /></label><label>Time<input type="time" value={form.time} onChange={event => setForm({ ...form, time: event.target.value })} required /></label><label>Capacity<input type="number" min="1" value={form.capacity} onChange={event => setForm({ ...form, capacity: event.target.value })} required /></label><label className="admin-checkbox"><input type="checkbox" checked={form.repeatWeekly} onChange={event => setForm({ ...form, repeatWeekly: event.target.checked })} /> Repeat weekly</label>{form.repeatWeekly && <label>Repeat until<input type="date" min={form.date} value={form.repeatUntil} onChange={event => setForm({ ...form, repeatUntil: event.target.value })} required /></label>}</AdminForm><section className="admin-section admin-existing-classes"><p className="eyebrow green">Existing classes</p>{classes.length === 0 ? <p className="body-copy">No classes have been added yet.</p> : classes.map(item => <ExistingClass key={item.id} item={item} onSaved={onSaved} onError={onError} />)}</section></>
+  return <><div className="admin-section admin-view-heading"><div><p className="eyebrow green">Class schedule</p><h3>Upcoming classes</h3></div><button className="icon-button" type="button" onClick={() => setShowForm(!showForm)} aria-label="Add class" title="Add class"><FiPlus /></button></div>{showForm && <AdminForm title="Add class" onSubmit={submit} saving={saving} button={form.repeatWeekly ? 'Add recurring classes' : 'Add class'}><label>Class name<select value={form.className} onChange={event => setForm({ ...form, className: event.target.value })}><option>Strength Training</option><option>Functional Fitness</option><option>Run Fit</option></select></label><label>First date<input type="date" value={form.date} onChange={event => setForm({ ...form, date: event.target.value })} required /></label><label>Time<input type="time" value={form.time} onChange={event => setForm({ ...form, time: event.target.value })} required /></label><label>Capacity<input type="number" min="1" value={form.capacity} onChange={event => setForm({ ...form, capacity: event.target.value })} required /></label><label className="admin-checkbox"><input type="checkbox" checked={form.repeatWeekly} onChange={event => setForm({ ...form, repeatWeekly: event.target.checked })} /> Repeat weekly</label>{form.repeatWeekly && <label>Repeat until<input type="date" min={form.date} value={form.repeatUntil} onChange={event => setForm({ ...form, repeatUntil: event.target.value })} required /></label>}</AdminForm>}<section className="admin-section admin-table-wrap"><table className="admin-table"><thead><tr><th>Class</th><th>Date</th><th>Time</th><th>Capacity</th><th>Actions</th></tr></thead><tbody>{classes.length === 0 ? <tr><td colSpan="5">No classes have been added yet.</td></tr> : classes.map(item => <ExistingClass key={item.id} item={item} onSaved={onSaved} onError={onError} />)}</tbody></table></section></>
 }
 
 function ExistingClass({ item, onSaved, onError }) {
@@ -146,24 +145,48 @@ function ExistingClass({ item, onSaved, onError }) {
     }
   }
 
-  return <form className="admin-existing-class" onSubmit={save}><select value={form.className} onChange={event => setForm({ ...form, className: event.target.value })}><option>Strength Training</option><option>Functional Fitness</option><option>Run Fit</option></select><input type="date" value={form.date} onChange={event => setForm({ ...form, date: event.target.value })} required /><input type="time" value={form.time} onChange={event => setForm({ ...form, time: event.target.value })} required /><input type="number" min="1" value={form.capacity} onChange={event => setForm({ ...form, capacity: event.target.value })} aria-label="Capacity" required /><input type="number" min="0" max={form.capacity} value={form.booked} onChange={event => setForm({ ...form, booked: event.target.value })} aria-label="Booked spots" required /><button className="button button-green" type="submit">Save changes</button></form>
+  async function remove() {
+    try { await deleteDoc(doc(db, 'classes', item.id)); onSaved('Class deleted.') } catch (error) { onError(error?.code === 'permission-denied' ? 'Class deletion was denied by Firestore.' : 'Class could not be deleted.') }
+  }
+
+  return <tr><td><input className="table-input" value={form.className} onChange={event => setForm({ ...form, className: event.target.value })} aria-label="Class name" /></td><td><input className="table-input" type="date" value={form.date} onChange={event => setForm({ ...form, date: event.target.value })} required /></td><td><input className="table-input" type="time" value={form.time} onChange={event => setForm({ ...form, time: event.target.value })} required /></td><td><input className="table-input table-number" type="number" min="1" value={form.capacity} onChange={event => setForm({ ...form, capacity: event.target.value })} aria-label="Capacity" required /><small>{form.booked} booked</small></td><td className="table-actions"><button className="icon-button" type="button" onClick={save} aria-label="Save class" title="Save class"><FiEdit2 /></button><button className="icon-button danger" type="button" onClick={remove} aria-label="Delete class" title="Delete class"><FiTrash2 /></button></td></tr>
 }
 
-function PricingManager({ pricing, onSaved }) {
-  const [items, setItems] = useState(pricing)
-  useEffect(() => setItems(pricing), [pricing])
+function SpecialManager({ specials, onSaved, onError }) {
+  const [showForm, setShowForm] = useState(false)
+  const [editing, setEditing] = useState(null)
+  const emptyForm = { label: '', title: '', detail: '', oldPrice: '', newPrice: '', action: 'View offer', path: '/pricing' }
+  const [form, setForm] = useState(emptyForm)
 
   async function save(event) {
     event.preventDefault()
-    await Promise.all(items.map(item => setDoc(doc(db, 'plans', item.id || item.name.toLowerCase().replaceAll(' ', '-')), { ...item, price: item.price, updatedAt: serverTimestamp() })))
-    onSaved()
+    try {
+      if (editing?.id) await updateDoc(doc(db, 'specials', editing.id), { ...form, updatedAt: serverTimestamp() })
+      else await addDoc(collection(db, 'specials'), { ...form, createdAt: serverTimestamp() })
+      setForm(emptyForm)
+      setEditing(null)
+      setShowForm(false)
+      onSaved(editing ? 'Special updated.' : 'Special added.')
+    } catch { onError('Special could not be added.') }
   }
 
-  return <AdminForm title="Change prices" onSubmit={save} button="Save prices">{items.map((item, index) => <label key={item.id || item.name}>{item.name}<input value={item.price} onChange={event => setItems(items.map((current, itemIndex) => itemIndex === index ? { ...current, price: event.target.value } : current))} /></label>)}</AdminForm>
+  function edit(item) {
+    setEditing(item)
+    setForm({ label: item.label || '', title: item.title || '', detail: item.detail || '', oldPrice: item.oldPrice || '', newPrice: item.newPrice || '', action: item.action || 'View offer', path: item.path || '/pricing' })
+    setShowForm(true)
+  }
+
+  async function remove(item) {
+    if (!item.id) return
+    try { await deleteDoc(doc(db, 'specials', item.id)); onSaved('Special deleted.') } catch { onError('Special could not be deleted.') }
+  }
+
+  return <><div className="admin-section admin-view-heading"><div><p className="eyebrow green">Special offers</p><h3>Current specials</h3></div><button className="icon-button" type="button" onClick={() => { setEditing(null); setForm(emptyForm); setShowForm(!showForm) }} aria-label="Add special" title="Add special"><FiPlus /></button></div>{showForm && <AdminForm title={editing ? 'Edit special' : 'Add special'} onSubmit={save} button={editing ? 'Save changes' : 'Add special'}><label>Label<input value={form.label} onChange={event => setForm({ ...form, label: event.target.value })} required /></label><label>Title<input value={form.title} onChange={event => setForm({ ...form, title: event.target.value })} required /></label><label>Details<textarea value={form.detail} onChange={event => setForm({ ...form, detail: event.target.value })} required /></label><div className="admin-price-fields"><label>Old price<input value={form.oldPrice} onChange={event => setForm({ ...form, oldPrice: event.target.value })} placeholder="R650" /></label><label>New price<input value={form.newPrice} onChange={event => setForm({ ...form, newPrice: event.target.value })} placeholder="R500" /></label></div><label>Button text<input value={form.action} onChange={event => setForm({ ...form, action: event.target.value })} required /></label><label>Link path<input value={form.path} onChange={event => setForm({ ...form, path: event.target.value })} required /></label></AdminForm>}<section className="admin-section special-admin-grid">{specials.map(item => <article className="special-admin-card" key={item.id || item.title}><p className="eyebrow green">{item.label}</p><h3>{item.title}</h3>{item.oldPrice && item.newPrice && <div className="deal-prices"><span>{item.oldPrice}</span><strong>{item.newPrice}</strong></div>}<p>{item.detail}</p><div><button className="icon-button" type="button" onClick={() => edit(item)} aria-label="Edit special" title="Edit special"><FiEdit2 /></button><button className="icon-button danger" type="button" onClick={() => remove(item)} aria-label="Delete special" title="Delete special"><FiTrash2 /></button></div></article>)}</section></>
 }
 
 function AppointmentManager({ bookings, onSaved }) {
   const [filter, setFilter] = useState('upcoming')
+  const [showForm, setShowForm] = useState(false)
 
   async function updateStatus(booking, status) {
     await updateDoc(doc(db, 'bookings', booking.id), { status, updatedAt: serverTimestamp() })
@@ -178,37 +201,13 @@ function AppointmentManager({ bookings, onSaved }) {
     onSaved()
   }
 
-  async function acceptBooking(booking) {
-    const invite = createCalendarInvite(booking)
-    await updateDoc(doc(db, 'bookings', booking.id), {
-      status: 'confirmed',
-      calendarInviteStatus: 'pending',
-      confirmedAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    })
-    await addDoc(collection(db, 'mail'), {
-      to: booking.customerEmail,
-      message: {
-        subject: `Booking confirmed: ${booking.name}`,
-        text: `Your ${booking.name} booking is confirmed for ${booking.date} at ${booking.time}.`,
-        html: `<p>Your <strong>${booking.name}</strong> booking is confirmed for ${booking.date} at ${booking.time}.</p><p>Your calendar invite is attached.</p>`,
-        attachments: [{
-          filename: `${booking.name.replaceAll(' ', '-')}.ics`,
-          contentType: 'text/calendar; charset=UTF-8',
-          content: invite,
-        }],
-      },
-    })
+  async function deleteBooking(booking) {
+    await deleteDoc(doc(db, 'bookings', booking.id))
     onSaved()
   }
 
-  async function updateTime(booking, event) {
-    const form = new FormData(event.currentTarget)
-    await updateDoc(doc(db, 'bookings', booking.id), {
-      date: form.get('date'),
-      time: form.get('time'),
-      updatedAt: serverTimestamp(),
-    })
+  async function updateBookingField(booking, field, value) {
+    await updateDoc(doc(db, 'bookings', booking.id), { [field]: value, ...(field === 'dateKey' ? { date: value } : {}), updatedAt: serverTimestamp() })
     onSaved()
   }
 
@@ -218,27 +217,15 @@ function AppointmentManager({ bookings, onSaved }) {
     return booking.date && booking.date < today
   })
 
-  return <section className="admin-section"><p className="eyebrow green">Appointments</p><div className="admin-filter"><button className={filter === 'upcoming' ? 'active' : ''} type="button" onClick={() => setFilter('upcoming')}>Upcoming</button><button className={filter === 'past' ? 'active' : ''} type="button" onClick={() => setFilter('past')}>Past</button></div>{visibleBookings.length === 0 ? <p className="body-copy">No {filter} appointments.</p> : visibleBookings.map(booking => <article className="admin-row" key={booking.id}><div><strong>{booking.name}</strong><span>{booking.customerName} · {booking.customerEmail}</span></div><form className="admin-appointment-form" onSubmit={event => updateTime(booking, event)}><input name="date" type="date" defaultValue={booking.dateKey || ''} /><input name="time" type="time" defaultValue={booking.time} /><select value={booking.status || 'requested'} onChange={event => updateStatus(booking, event.target.value)}><option value="requested">Requested</option><option value="confirmed">Confirmed</option><option value="cancelled">Cancelled</option></select>{booking.status !== 'confirmed' && <button className="button button-green" type="button" onClick={() => acceptBooking(booking)}>Accept & email invite</button>}<button className="button button-light" type="submit">Save time</button></form></article>)}</section>
-}
+  async function addBooking(event) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    await addDoc(collection(db, 'bookings'), { type: form.get('type'), name: form.get('name'), date: form.get('date'), dateKey: form.get('date'), time: form.get('time'), customerName: form.get('customerName'), customerEmail: form.get('customerEmail'), status: 'confirmed', paymentMethod: form.get('type') === 'oneOnOne' ? 'in-person' : 'class-session-balance', createdAt: serverTimestamp() })
+    setShowForm(false)
+    onSaved('Booking added.')
+  }
 
-function createCalendarInvite(booking) {
-  const start = `${(booking.dateKey || booking.date).replaceAll('-', '')}T${booking.time.replace(':', '')}00`
-  const endHour = String(Number(booking.time.slice(0, 2)) + 1).padStart(2, '0')
-  const end = `${(booking.dateKey || booking.date).replaceAll('-', '')}T${endHour}${booking.time.slice(3)}00`
-  const ics = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//Renewed Performance//Booking//EN',
-    'BEGIN:VEVENT',
-    `UID:${booking.id}@renewedperformance`,
-    `DTSTART;TZID=Africa/Johannesburg:${start}`,
-    `DTEND;TZID=Africa/Johannesburg:${end}`,
-    `SUMMARY:${booking.name}`,
-    'LOCATION:94 Strand St, Cape Town City Centre',
-    'END:VEVENT',
-    'END:VCALENDAR',
-  ].join('\r\n')
-  return btoa(unescape(encodeURIComponent(ics)))
+  return <><div className="admin-section admin-view-heading"><div><p className="eyebrow green">Booking schedule</p><h3>Scheduled bookings</h3></div><button className="icon-button" type="button" onClick={() => setShowForm(!showForm)} aria-label="Add booking" title="Add booking"><FiPlus /></button></div>{showForm && <form className="admin-form admin-add-booking" onSubmit={addBooking}><p className="eyebrow green">Add booking</p><label>Booking type<select name="type"><option value="class">Class</option><option value="oneOnOne">One-on-one</option></select></label><label>Session or class name<input name="name" required /></label><label>Customer name<input name="customerName" required /></label><label>Customer email<input name="customerEmail" type="email" required /></label><label>Date<input name="date" type="date" required /></label><label>Time<input name="time" type="time" required /></label><button className="button button-green" type="submit">Add booking <span>↗</span></button></form>}<section className="admin-section"><div className="admin-filter"><button className={filter === 'upcoming' ? 'active' : ''} type="button" onClick={() => setFilter('upcoming')}>Upcoming</button><button className={filter === 'past' ? 'active' : ''} type="button" onClick={() => setFilter('past')}>Past</button></div><div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Booking</th><th>Customer</th><th>Date</th><th>Time</th><th>Type</th><th>Status</th><th>Actions</th></tr></thead><tbody>{visibleBookings.length === 0 ? <tr><td colSpan="7">No {filter} bookings.</td></tr> : visibleBookings.map(booking => <tr key={booking.id}><td><strong>{booking.name}</strong></td><td>{booking.customerName}<small>{booking.customerEmail}</small></td><td><input className="table-input" type="date" value={booking.dateKey || ''} onChange={event => updateBookingField(booking, 'dateKey', event.target.value)} /></td><td><input className="table-input" type="time" value={booking.time || ''} onChange={event => updateBookingField(booking, 'time', event.target.value)} /></td><td>{booking.type === 'oneOnOne' ? 'One-on-one' : 'Class'}</td><td><span className={`booking-status ${booking.status || 'confirmed'}`}>{booking.status || 'confirmed'}</span></td><td className="table-actions"><button className="icon-button danger" type="button" onClick={() => updateStatus(booking, 'cancelled')} aria-label="Cancel booking" title="Cancel booking"><FiX /></button><button className="icon-button danger" type="button" onClick={() => deleteBooking(booking)} aria-label="Delete booking" title="Delete booking"><FiTrash2 /></button></td></tr>)}</tbody></table></div></section></>
 }
 
 function CalendarView({ classes, bookings }) {

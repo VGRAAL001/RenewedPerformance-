@@ -16,11 +16,16 @@ function Signup() {
     const form = new FormData(event.currentTarget)
     const name = String(form.get('name') || '').trim()
     const email = String(form.get('email') || '').trim()
+    const phone = String(form.get('phone') || '').trim()
     const password = String(form.get('password') || '')
     const confirmPassword = String(form.get('confirmPassword') || '')
 
     if (name.length < 2) {
       setError('Enter your full name.')
+      return
+    }
+    if (phone.length < 7) {
+      setError('Enter a valid phone number.')
       return
     }
     if (password.length < 6) {
@@ -49,6 +54,7 @@ function Signup() {
       await setDoc(doc(db, 'users', result.user.uid), {
         name,
         email: result.user.email,
+        phone,
         sessionsAvailable: 0,
         membershipPlan: null,
         createdAt: serverTimestamp(),
@@ -80,6 +86,10 @@ function Signup() {
           <label>
             Email address
             <input name="email" type="email" placeholder="you@example.com" required />
+          </label>
+          <label>
+            Phone number
+            <input name="phone" type="tel" placeholder="Your phone number" autoComplete="tel" required />
           </label>
           <label>
             Password

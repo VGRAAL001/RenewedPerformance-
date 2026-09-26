@@ -1,6 +1,7 @@
 import { collection, getDocs } from 'firebase/firestore'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { db } from '../../firebase'
 import { oneOnOneOptions } from '../data'
 
@@ -19,6 +20,8 @@ function getNextSevenDayKeys() {
 
 function BookNow() {
   const navigate = useNavigate()
+  const { state } = useLocation()
+  const editingBooking = state?.editingBooking
   const [bookingType, setBookingType] = useState('class')
   const [availableClasses, setAvailableClasses] = useState([])
   const [loadingClasses, setLoadingClasses] = useState(true)
@@ -59,7 +62,7 @@ function BookNow() {
   }, [])
 
   function selectBooking(booking) {
-    navigate('/booking-confirmation', { state: { booking } })
+    navigate('/booking-confirmation', { state: { booking: { ...booking, editingBooking } } })
   }
 
 

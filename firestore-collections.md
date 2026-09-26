@@ -31,6 +31,19 @@ createdAt: timestamp
 updatedAt: timestamp
 ```
 
+Recurring memberships are stored on the user's document after checkout:
+
+```text
+subscription: {
+	status: "active",
+	billingInterval: "monthly",
+	price: "R650",
+	nextBillingDate: "2026-10-26"
+}
+```
+
+The current checkout records the member's recurring choice. Connect the payment form to a payment provider or server-side billing function before using it to charge cards automatically.
+
 ## `bookings`
 
 Created automatically after a member confirms a booking. It stores the selected class or one-on-one session, contact details, user ID, status, and creation timestamp.
