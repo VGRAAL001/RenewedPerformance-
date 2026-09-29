@@ -11,6 +11,7 @@ const memberProfile = { name: 'Alex Morgan', initials: 'AM', plan: 'No plan yet'
 
 function Layout({ children }) {
   const [profileOpen, setProfileOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [user, setUser] = useState(null)
   const [profileData, setProfileData] = useState(memberProfile)
   useEffect(() => onAuthStateChanged(auth, currentUser => {
