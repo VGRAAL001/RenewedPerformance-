@@ -30,12 +30,17 @@
 .auth-error { margin: -3px 0 0; color: #a02b2b; font-size: 11px; line-height: 1.4; }
 .auth-success { margin: -3px 0 0; color: var(--green); font-size: 11px; line-height: 1.4; }
 .profile-signout { width: 100%; margin-top: 12px; padding: 10px 0 0; border: 0; border-top: 1px solid var(--line); color: #a02b2b; background: transparent; text-align: left; text-transform: uppercase; letter-spacing: 1px; font-size: 9px; font-weight: 700; cursor: pointer; }
-.profile-panel .profile-link:hover { color: var(--green); background: #eef3ee; }
+.profile-panel .profile-link { color: var(--green); }
+.profile-panel .profile-link.active { color: var(--green); }
+.profile-panel .profile-link:hover { color: var(--dark); background: #eef3ee; }
 .mobile-menu { display: none; }
+.mobile-profile { display: none; }
 
 @media (max-width: 760px) {
   .account-link { border: 0; padding-left: 0; }
   .profile-trigger-name { display: none; }
+  .site-header .mobile-profile { display: inline-flex; align-items: center; gap: 7px; margin-left: auto; margin-right: 10px; color: white; font-size: 10px; font-weight: 700; }
+  .site-header .mobile-profile .profile-avatar { width: 30px; height: 30px; }
   .profile-panel { position: fixed; top: 77px; right: 18px; width: min(285px, calc(100vw - 36px)); }
   .site-header .nav-wrap { position: relative; }
   .site-header .mobile-menu { display: block; position: relative; margin-left: auto; z-index: 30; }
@@ -44,7 +49,7 @@
   .site-header .mobile-menu summary span { display: block; width: 17px; height: 2px; background: currentColor; }
   .site-header .mobile-menu nav { position: absolute; top: 48px; right: 0; width: 190px; display: grid; gap: 0; padding: 8px; background: white; box-shadow: 6px 6px 0 rgba(16, 21, 16, .25); }
   .site-header .mobile-menu nav a { padding: 12px; color: var(--dark); border-bottom: 1px solid var(--line); text-transform: uppercase; letter-spacing: 1px; font-size: 10px; font-weight: 700; }
-  .site-header .mobile-menu nav a:last-child { color: white; background: var(--green); border-bottom: 0; }
+  .site-header .mobile-menu nav a:last-child { color: var(--dark); background: white; border-bottom: 0; }
   .site-header .main-nav > a, .site-header .main-nav > .profile-menu, .site-header .main-nav > .account-link, .site-header .main-nav > .admin-header-link { display: none; }
   .auth-page { min-height: 560px; padding: 42px 18px; }
   .auth-panel { padding: 30px 22px; box-shadow: 8px 8px 0 rgba(16, 21, 16, .25); }
