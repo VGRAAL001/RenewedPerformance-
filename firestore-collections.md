@@ -27,6 +27,13 @@ Created automatically after signup or login:
 ```text
 name: "Aaliyah Van Graan"
 email: "member@example.com"
+phone: "+27821234567"
+cellPhone: "+27821234567"
+dateOfBirth: "1995-04-12"
+age: 31
+gender: "prefer-not-to-say"
+sessionsAvailable: 0
+groupSessionsAvailable: 0
 createdAt: timestamp
 updatedAt: timestamp
 ```

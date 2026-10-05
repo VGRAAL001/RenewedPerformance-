@@ -17,6 +17,8 @@ function Signup() {
     const name = String(form.get('name') || '').trim()
     const email = String(form.get('email') || '').trim()
     const phone = String(form.get('phone') || '').trim()
+    const dateOfBirth = String(form.get('dateOfBirth') || '')
+    const gender = String(form.get('gender') || '')
     const password = String(form.get('password') || '')
     const confirmPassword = String(form.get('confirmPassword') || '')
 
@@ -26,6 +28,23 @@ function Signup() {
     }
     if (phone.length < 7) {
       setError('Enter a valid phone number.')
+      return
+    }
+    if (!dateOfBirth || new Date(`${dateOfBirth}T00:00:00`) > new Date()) {
+      setError('Enter a valid date of birth.')
+      return
+    }
+    const birthDate = new Date(`${dateOfBirth}T00:00:00`)
+    const today = new Date()
+    const age = today.getFullYear() - birthDate.getFullYear() - (
+      today < new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate()) ? 1 : 0
+    )
+    if (age < 13) {
+      setError('You must be at least 13 years old to create an account.')
+      return
+    }
+    if (!gender) {
+      setError('Select your gender.')
       return
     }
     if (password.length < 6) {
@@ -55,7 +74,12 @@ function Signup() {
         name,
         email: result.user.email,
         phone,
+        cellPhone: phone,
+        dateOfBirth,
+        age,
+        gender,
         sessionsAvailable: 0,
+        groupSessionsAvailable: 0,
         membershipPlan: null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -90,6 +114,20 @@ function Signup() {
           <label>
             Phone number
             <input name="phone" type="tel" placeholder="Your phone number" autoComplete="tel" required />
+          </label>
+          <label>
+            Date of birth
+            <input name="dateOfBirth" type="date" autoComplete="bday" required />
+          </label>
+          <label>
+            Gender
+            <select name="gender" defaultValue="" required>
+              <option value="" disabled>Select an option</option>
+              <option value="female">Female</option>
+              <option value="male">Male</option>
+              <option value="non-binary">Non-binary</option>
+              <option value="prefer-not-to-say">Prefer not to say</option>
+            </select>
           </label>
           <label>
             Password
