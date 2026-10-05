@@ -7,13 +7,24 @@ import { auth, db } from '../../firebase'
 import { specialDeals } from '../data'
 import { isAdminUser } from '../utils/admin'
 import { classRange, getWeekDateKeys, minutesToTime, timeToMinutes } from '../utils/scheduling'
+import AdminCalendarView from '../components/AdminCalendarView'
+import ProgramManager from '../components/ProgramManager'
 
 const adminViews = {
   '/admin': 'overview',
   '/admin/classes': 'classes',
   '/admin/specials': 'specials',
+  '/admin/programs': 'programs',
   '/admin/appointments': 'appointments',
   '/admin/calendar': 'calendar',
+}
+
+function confirmDestructiveAction(message) {
+  return window.confirm(message)
+}
+
+function hasText(...values) {
+  return values.every(value => String(value || '').trim().length > 0)
 }
 
 function Admin() {
@@ -62,6 +73,7 @@ function Admin() {
         <AdminLink to="/admin/classes" active={view === 'classes'}>Classes</AdminLink>
         <AdminLink to="/admin/appointments" active={view === 'appointments'}>Bookings</AdminLink>
         <AdminLink to="/admin/specials" active={view === 'specials'}>Specials</AdminLink>
+        <AdminLink to="/admin/programs" active={view === 'programs'}>Programs</AdminLink>
         <AdminLink to="/admin/calendar" active={view === 'calendar'}>Calendar</AdminLink>
       </nav>
       {message && <p className="admin-message">{message}</p>}
@@ -70,7 +82,8 @@ function Admin() {
       {view === 'classes' && <ClassManager classes={classes} onSaved={async messageText => { await loadAdminData(); setMessage(messageText) }} onError={setError} />}
       {view === 'appointments' && <AppointmentManager bookings={bookings} onSaved={async () => { await loadAdminData(); setMessage('Appointment updated.') }} />}
       {view === 'specials' && <SpecialManager specials={specials} onSaved={async messageText => { await loadAdminData(); setMessage(messageText) }} onError={setError} />}
-      {view === 'calendar' && <CalendarView classes={classes} bookings={bookings} />}
+      {view === 'programs' && <ProgramManager onSaved={setMessage} onError={setError} />}
+      {view === 'calendar' && <AdminCalendarView classes={classes} bookings={bookings} />}
     </div>
   )
 }
@@ -94,6 +107,10 @@ function ClassManager({ classes, onSaved, onError }) {
 
   async function submit(event) {
     event.preventDefault()
+    if (!hasText(form.className, form.date, form.time) || Number(form.capacity) < 1 || (form.repeatWeekly && !form.repeatUntil)) {
+      onError('Enter a valid class name, date, time, capacity, and repeat end date.')
+      return
+    }
     setSaving(true)
     const dates = []
     const startDate = new Date(`${form.date}T12:00:00`)
@@ -132,6 +149,10 @@ function ExistingClass({ item, onSaved, onError }) {
 
   async function save(event) {
     event.preventDefault()
+    if (!hasText(form.className, form.date, form.time) || Number(form.capacity) < 1 || Number(form.booked) < 0 || Number(form.booked) > Number(form.capacity)) {
+      onError('Enter valid class details before saving.')
+      return
+    }
     try {
       await updateDoc(doc(db, 'classes', item.id), {
         ...form,
@@ -146,6 +167,7 @@ function ExistingClass({ item, onSaved, onError }) {
   }
 
   async function remove() {
+    if (!confirmDestructiveAction(`Delete ${item.className} on ${item.date}?`)) return
     try { await deleteDoc(doc(db, 'classes', item.id)); onSaved('Class deleted.') } catch (error) { onError(error?.code === 'permission-denied' ? 'Class deletion was denied by Firestore.' : 'Class could not be deleted.') }
   }
 
@@ -160,6 +182,10 @@ function SpecialManager({ specials, onSaved, onError }) {
 
   async function save(event) {
     event.preventDefault()
+    if (!hasText(form.label, form.title, form.detail, form.action, form.path)) {
+      onError('Complete all required special offer fields before saving.')
+      return
+    }
     try {
       if (editing?.id) await updateDoc(doc(db, 'specials', editing.id), { ...form, updatedAt: serverTimestamp() })
       else await addDoc(collection(db, 'specials'), { ...form, createdAt: serverTimestamp() })
@@ -178,6 +204,7 @@ function SpecialManager({ specials, onSaved, onError }) {
 
   async function remove(item) {
     if (!item.id) return
+    if (!confirmDestructiveAction(`Delete the special offer “${item.title}”?`)) return
     try { await deleteDoc(doc(db, 'specials', item.id)); onSaved('Special deleted.') } catch { onError('Special could not be deleted.') }
   }
 
@@ -189,6 +216,7 @@ function AppointmentManager({ bookings, onSaved }) {
   const [showForm, setShowForm] = useState(false)
 
   async function updateStatus(booking, status) {
+    if (status === 'cancelled' && !confirmDestructiveAction(`Cancel ${booking.name} for ${booking.customerName || 'this member'}?`)) return
     await updateDoc(doc(db, 'bookings', booking.id), { status, updatedAt: serverTimestamp() })
     if (status === 'cancelled' && booking.type === 'oneOnOne' && booking.dateKey && booking.time) {
       const duration = Number(booking.duration || 30)
@@ -202,11 +230,14 @@ function AppointmentManager({ bookings, onSaved }) {
   }
 
   async function deleteBooking(booking) {
+    if (!confirmDestructiveAction(`Delete ${booking.name} for ${booking.customerName || 'this member'}?`)) return
     await deleteDoc(doc(db, 'bookings', booking.id))
     onSaved()
   }
 
   async function updateBookingField(booking, field, value) {
+    if (field === 'dateKey' && !/^\d{4}-\d{2}-\d{2}$/.test(value)) return
+    if (field === 'time' && !/^\d{2}:\d{2}$/.test(value)) return
     await updateDoc(doc(db, 'bookings', booking.id), { [field]: value, ...(field === 'dateKey' ? { date: value } : {}), updatedAt: serverTimestamp() })
     onSaved()
   }
@@ -220,6 +251,7 @@ function AppointmentManager({ bookings, onSaved }) {
   async function addBooking(event) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
+    if (!hasText(form.get('name'), form.get('customerName'), form.get('customerEmail'), form.get('date'), form.get('time'))) return
     await addDoc(collection(db, 'bookings'), { type: form.get('type'), name: form.get('name'), date: form.get('date'), dateKey: form.get('date'), time: form.get('time'), customerName: form.get('customerName'), customerEmail: form.get('customerEmail'), status: 'confirmed', paymentMethod: form.get('type') === 'oneOnOne' ? 'in-person' : 'class-session-balance', createdAt: serverTimestamp() })
     setShowForm(false)
     onSaved('Booking added.')
