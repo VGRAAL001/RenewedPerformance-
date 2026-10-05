@@ -19,6 +19,7 @@
 .auth-form label { display: grid; gap: 7px; color: var(--dark); font-size: 11px; font-weight: 700; }
 .auth-form input:not([type='checkbox']) { width: 100%; padding: 13px 14px; border: 1px solid var(--line); border-radius: 0; color: var(--dark); background: #f8faf7; font: 13px 'DM Sans', sans-serif; }
 .auth-form input:focus { outline: 2px solid var(--pale); outline-offset: 1px; }
+.auth-form select { width: 100%; padding: 13px 14px; border: 1px solid var(--line); border-radius: 0; color: var(--dark); background: #f8faf7; font: 13px 'DM Sans', sans-serif; }
 .password-field { position: relative; display: block; }.password-field input { padding-right: 58px !important; }.password-toggle { position: absolute; top: 50%; right: 12px; padding: 0; border: 0; color: var(--green); background: transparent; transform: translateY(-50%); cursor: pointer; font-size: 10px; font-weight: 700; }.password-toggle:hover { color: var(--pale); }
 .auth-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .checkbox-label { display: flex !important; align-items: center; gap: 7px !important; color: var(--muted) !important; font-size: 10px !important; font-weight: 500 !important; }
@@ -27,6 +28,7 @@
 .auth-switch { margin: 25px 0 0; color: var(--muted); text-align: center; font-size: 12px; }
 .auth-switch a { color: var(--green); font-weight: 700; text-decoration: underline; }
 .auth-error { margin: -3px 0 0; color: #a02b2b; font-size: 11px; line-height: 1.4; }
+.auth-success { margin: -3px 0 0; color: var(--green); font-size: 11px; line-height: 1.4; }
 .profile-signout { width: 100%; margin-top: 12px; padding: 10px 0 0; border: 0; border-top: 1px solid var(--line); color: #a02b2b; background: transparent; text-align: left; text-transform: uppercase; letter-spacing: 1px; font-size: 9px; font-weight: 700; cursor: pointer; }
 .profile-panel .profile-link:hover { color: var(--green); background: #eef3ee; }
 .mobile-menu { display: none; }
