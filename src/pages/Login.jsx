@@ -27,10 +27,10 @@ function Login() {
         email: result.user.email,
         updatedAt: serverTimestamp(),
       }, { merge: true })
-      navigate('/book-now')
+      navigate('/')
     } catch (error) {
       if (error?.code === 'permission-denied') {
-        navigate('/book-now')
+        navigate('/')
       } else {
         setError(getAuthErrorMessage(error, 'log you in'))
       }

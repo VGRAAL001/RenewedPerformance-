@@ -33,6 +33,7 @@ dateOfBirth: "1995-04-12"
 age: 31
 gender: "prefer-not-to-say"
 sessionsAvailable: 0
+oneOnOneSessions: 0
 groupSessionsAvailable: 0
 createdAt: timestamp
 updatedAt: timestamp

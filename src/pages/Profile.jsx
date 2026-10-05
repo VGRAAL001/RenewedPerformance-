@@ -8,21 +8,23 @@ import { isAdminUser } from '../utils/admin'
 
 function Profile() {
   const [user, setUser] = useState(null)
-  const [profileData, setProfileData] = useState({ sessionsAvailable: 0, membershipPlan: 'No plan yet', subscription: null })
+  const [profileData, setProfileData] = useState({ sessionsAvailable: 0, oneOnOneSessions: 0, membershipPlan: 'No plan yet', subscription: null })
   const [bookings, setBookings] = useState([])
   const [bookingError, setBookingError] = useState('')
   const [currentTime] = useState(() => Date.now())
 
   useEffect(() => onAuthStateChanged(auth, currentUser => {
     setUser(currentUser)
-    if (currentUser) Promise.all([
+    if (currentUser) Promise.allSettled([
       getDoc(doc(db, 'users', currentUser.uid)),
       getDocs(query(collection(db, 'bookings'), where('userId', '==', currentUser.uid))),
       getDocs(query(collection(db, 'bookings'), where('customerEmail', '==', currentUser.email))),
-    ]).then(([profileSnapshot, userBookingSnapshot, emailBookingSnapshot]) => {
-      if (profileSnapshot.exists()) setProfileData(data => ({ ...data, ...profileSnapshot.data() }))
-      const bookingsById = new Map([...userBookingSnapshot.docs, ...emailBookingSnapshot.docs].map(item => [item.id, { id: item.id, ...item.data() }]))
-      setBookings([...bookingsById.values()].filter(item => item.status !== 'cancelled'))
+    ]).then(([profileResult, userBookingResult, emailBookingResult]) => {
+      if (profileResult.status === 'fulfilled' && profileResult.value.exists()) setProfileData(data => ({ ...data, ...profileResult.value.data() }))
+      const userBookings = userBookingResult.status === 'fulfilled' ? userBookingResult.value.docs : []
+      const emailBookings = emailBookingResult.status === 'fulfilled' ? emailBookingResult.value.docs : []
+      const bookingsById = new Map([...userBookings, ...emailBookings].map(item => [item.id, { id: item.id, ...item.data() }]))
+      setBookings([...bookingsById.values()].filter(item => item.status !== 'cancelled').sort((first, second) => `${first.dateKey || ''} ${first.time || ''}`.localeCompare(`${second.dateKey || ''} ${second.time || ''}`)))
     }).catch(() => {})
   }), [])
 
@@ -106,7 +108,8 @@ function Profile() {
         <section className="profile-page-card">
           <p className="eyebrow green">Membership</p>
           <div className="profile-page-stat"><strong>{profileData.membershipPlan || 'No plan yet'}</strong><span>current plan</span></div>
-          <div className="profile-page-stat"><strong>{profileData.sessionsAvailable || 0}</strong><span>sessions available</span></div>
+          <div className="profile-page-stat"><strong>{profileData.sessionsAvailable || 0}</strong><span>class sessions available</span></div>
+          <div className="profile-page-stat"><strong>{profileData.oneOnOneSessions || 0}</strong><span>one-on-one sessions available</span></div>
           {profileData.subscription?.status === 'active' && <div className="profile-page-stat"><strong>Monthly</strong><span>next renewal {profileData.subscription.nextBillingDate}</span></div>}
           <Link className="button button-green" to="/book-now">Book a session <span>↗</span></Link>
           <Link className="button button-light buy-sessions-link" to="/payment" state={{ plan: plans[0] }}>Buy more sessions <span>↗</span></Link>

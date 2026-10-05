@@ -1,14 +1,16 @@
 import { onAuthStateChanged } from 'firebase/auth'
 import { collection, doc, getDoc, runTransaction, serverTimestamp } from 'firebase/firestore'
 import { useEffect, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { auth, db } from '../../firebase'
 
 function BookingConfirmation() {
   const { state } = useLocation()
+  const navigate = useNavigate()
   const booking = state?.booking
   const [user, setUser] = useState(null)
   const [confirmed, setConfirmed] = useState(false)
+  const [reviewing, setReviewing] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [sessionsAvailable, setSessionsAvailable] = useState(0)
@@ -23,7 +25,9 @@ function BookingConfirmation() {
         email: currentUser.email || '',
       }))
       getDoc(doc(db, 'users', currentUser.uid)).then(snapshot => {
-        setSessionsAvailable(snapshot.exists() ? Number(snapshot.data().sessionsAvailable || 0) : 0)
+        const userData = snapshot.exists() ? snapshot.data() : {}
+        setSessionsAvailable(Number(userData.sessionsAvailable || 0))
+        setDetails(currentDetails => ({ ...currentDetails, phone: userData.phone || userData.cellPhone || '' }))
       }).catch(() => {})
     }
   }), [])
@@ -32,8 +36,13 @@ function BookingConfirmation() {
     setDetails({ ...details, [event.target.name]: event.target.value })
   }
 
-  async function handleSubmit(event) {
+  function handleSubmit(event) {
     event.preventDefault()
+    setError('')
+    setReviewing(true)
+  }
+
+  async function handleConfirm() {
     setSubmitting(true)
     setError('')
     try {
@@ -135,13 +144,14 @@ function BookingConfirmation() {
           <br />
           <span>to continue.</span>
         </h2>
-        <Link className="button button-green" to="/book-now">Back to bookings <span>↗</span></Link>
+        <Link className="button button-green back-button" to="/book-now">Back to bookings <span>←</span></Link>
       </div>
     )
   }
 
   return (
     <div className="page-wrap page-content">
+      <button className="button button-light page-back" type="button" onClick={() => navigate(-1)}>Back</button>
       <div className="page-intro">
         <p className="eyebrow green">Almost there</p>
         <h2>
@@ -168,6 +178,19 @@ function BookingConfirmation() {
           <h3>You’re on your way.</h3>
           <p className="body-copy">{booking.type === 'oneOnOne' ? 'Payment is made in person at your one-on-one session.' : 'Your class session has been deducted from your account balance.'}</p>
           <Link className="button button-green" to="/">Return home <span>↗</span></Link>
+        </section>
+      ) : reviewing ? (
+        <section className="booking-confirmed booking-review">
+          <p className="eyebrow green">Review your details</p>
+          <h3>Ready to save?</h3>
+          <p><strong>Full name</strong>{details.name}</p>
+          <p><strong>Email address</strong>{details.email}</p>
+          <p><strong>Phone number</strong>{details.phone}</p>
+          {error && <p className="auth-error" role="alert">{error}</p>}
+          <div className="booking-review-actions">
+            <button className="button button-light" type="button" onClick={() => setReviewing(false)} disabled={submitting}>Back to edit</button>
+            <button className="button button-green" type="button" onClick={handleConfirm} disabled={submitting}>{submitting ? 'Saving booking...' : 'Confirm booking'} <span>↗</span></button>
+          </div>
         </section>
       ) : (
         <div className="confirmation-grid">
@@ -197,7 +220,7 @@ function BookingConfirmation() {
             </label>
             {error && <p className="auth-error" role="alert">{error}</p>}
             <button className="button button-green" type="submit" disabled={submitting}>
-              {submitting ? 'Saving booking...' : 'Confirm booking'} <span>↗</span>
+              Review booking <span>↗</span>
             </button>
           </form>
         </div>

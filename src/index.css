@@ -56,6 +56,11 @@ button { font: inherit; }
 .profile-page-stat strong { color: var(--green); font: italic 700 42px/.85 var(--display); text-transform: uppercase; }
 .profile-page-stat span { color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-size: 10px; font-weight: 700; }
 .profile-page-card .button { margin-top: 18px; }
+.page-back { margin-bottom: 28px; }.page-back:after { content: '←'; margin-left: 8px; }
+.booking-review p strong { display: inline-block; min-width: 98px; margin-right: 8px; }
+.booking-review-actions .button-light:after { content: '←'; margin-left: 8px; }
+.button:not(.back-button):not(.page-back) > span, .page-back > span, .profile-link span, .booking-option b, .nav-cta span { display: none; }
+.booking-review-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
 .profile-admin-link { margin-left: 8px; }
 .buy-sessions-link { margin-left: 8px; }
 .payment-grid { display: grid; grid-template-columns: .8fr 1.2fr; gap: 17px; align-items: start; }.payment-grid .booking-summary, .payment-grid .confirmation-form { min-height: 100%; }.payment-price { display: block; margin-top: 24px; color: var(--green); font: italic 700 58px/.85 var(--display); }.payment-price small { color: var(--muted); font: 12px 'DM Sans', sans-serif; }.payment-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }.payment-note { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }

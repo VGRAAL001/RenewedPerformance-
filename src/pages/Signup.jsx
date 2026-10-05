@@ -84,12 +84,12 @@ function Signup() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })
-      navigate('/book-now')
+      navigate('/')
     } catch (error) {
       if (error?.code === 'permission-denied') {
-        navigate('/book-now')
+        navigate('/')
       } else {
-        navigate('/book-now')
+        navigate('/')
       }
     }
   }
