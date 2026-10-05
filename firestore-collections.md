@@ -68,6 +68,16 @@ status: "reserved"
 
 Longer services reserve multiple consecutive documents. For example, a 60-minute session reserves both `09:30` and `10:00`.
 
-## Email delivery
+## Email and Google Calendar delivery
 
-The admin acceptance action creates a document in `mail` with an `.ics` attachment. Install Firebase's **Trigger Email** extension and configure it to watch the `mail` collection. The extension sends the confirmation email and calendar invite.
+The `processBookingConfirmation` Firebase Function runs when a confirmed booking is created. It creates an event in the admin Google Calendar and writes a document to `mail` with an `.ics` attachment. Install Firebase's **Trigger Email** extension and configure it to watch the `mail` collection.
+
+Configure these Firebase Functions environment variables before deployment:
+
+```text
+GOOGLE_CALENDAR_ID=the admin calendar ID
+GOOGLE_SERVICE_ACCOUNT_JSON=the Google service account JSON document
+ADMIN_EMAIL=arendsberucia@gmail.com
+```
+
+Share the admin's Google Calendar with the service account email and grant **Make changes to events**. Enable the Google Calendar API in the Google Cloud project. Deploy with `firebase deploy --only functions,firestore:rules` after authenticating with `firebase login`.

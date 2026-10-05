@@ -34,6 +34,7 @@ function Profile() {
 
   async function cancelBooking(booking) {
     setBookingError('')
+    if (!window.confirm(`Cancel your ${booking.name} booking?`)) return
     const bookingDate = new Date(`${booking.dateKey}T${booking.time || '00:00'}:00`)
     if (booking.type !== 'class' && bookingDate.getTime() - currentTime < 24 * 60 * 60 * 1000) {
       setBookingError('One-on-one sessions can only be cancelled 24 hours before the appointment.')

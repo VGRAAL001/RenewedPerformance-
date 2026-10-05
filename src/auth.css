@@ -35,6 +35,7 @@
 .profile-panel .profile-link:hover { color: var(--dark); background: #eef3ee; }
 .mobile-menu { display: none; }
 .mobile-profile { display: none; }
+.site-footer .mobile-profile { display: none !important; }
 
 @media (max-width: 760px) {
   .account-link { border: 0; padding-left: 0; }
